@@ -74,14 +74,16 @@ combined = 0.70 * llm_score + 0.30 * stylometric_score
 
 If the signals disagree by more than `0.30`, the result is pulled toward `0.50` to reflect uncertainty. Scores `>= 0.70` become `likely_ai`, scores `<= 0.30` become `likely_human`, and everything between becomes `uncertain`. This middle band is intentionally wide because false positives against human creators are more harmful than uncertain labels.
 
-Example outputs from local verification:
+Example outputs from Groq-backed verification:
 
-| Input type | Attribution | Confidence |
-| --- | --- | --- |
-| Formal AI-like paragraph about AI ethics | `likely_ai` | `0.712` |
-| Casual ramen review with uneven style | `likely_human` | `0.132` |
-| Formal monetary policy paragraph | `uncertain` | `0.566` |
-| Lightly edited remote-work paragraph | `uncertain` | `0.404` |
+| Example submission | Source | Attribution | Confidence | Why this example matters |
+| --- | --- | --- | --- | --- |
+| Explicitly AI-framed paragraph beginning "As an AI language model..." | Synthetic test input written for this project | `likely_ai` | `0.723` | High-confidence AI-like case; Groq scored the LLM-style signal at `0.900`, while stylometry scored `0.394`, producing a high but not absolute combined score. |
+| Jane Austen prose beginning "It is a truth universally acknowledged..." | [Project Gutenberg Australia, *Pride and Prejudice*](https://gutenberg.net.au/ebooks/m00008.html) | `likely_human` | `0.153` | Real human-authored internet example with distinctive dialogue/prose rhythm; the system correctly produced a much lower score. |
+| Walt Whitman verse beginning "I celebrate myself, and sing myself" | [Poetry Foundation, "Song of Myself"](https://www.poetryfoundation.org/poems/45477/song-of-myself-1892-version) | `uncertain` | `0.317` | Real human-authored poetry landed near the human/uncertain boundary because the stylometric signal reacts strongly to unusual structure. |
+| Abraham Lincoln speech beginning "Four score and seven years..." | [Project Gutenberg, *Lincoln's Gettysburg Address*](https://www.gutenberg.org/ebooks/4) | `uncertain` | `0.331` | Real human-authored formal rhetoric landed uncertain, showing why the system avoids overconfident claims on polished historical prose. |
+
+The Austen example and the AI-framed paragraph are the clearest required pair: `0.723` versus `0.153` shows the scoring system is not returning a constant confidence value. The Whitman and Lincoln examples are included because they expose a useful limitation: real human writing can still look structurally unusual or highly polished, so the label should sometimes be uncertain rather than forced to human or AI.
 
 ## Transparency Labels
 
@@ -194,6 +196,12 @@ Writing the spec first made the confidence thresholds and label text concrete be
 
 ## AI Usage
 
-I directed AI assistance to turn the project brief into an implementation-ready architecture with two flows: submission and appeal. I revised that plan by widening the uncertain threshold band to reduce the risk of false positives.
+I used AI assistance as a design and implementation reviewer, not as a paste-and-ship code generator.
 
-I also directed AI assistance to scaffold the Flask app, detection functions, and documentation evidence. I revised the generated approach by adding a Groq-free fallback, adding signal-disagreement calibration, and ensuring the exact three label variants appear in both code and README.
+| Instance | What I directed AI to do | What it produced | What I revised or overrode |
+| --- | --- | --- | --- |
+| Architecture planning | Turn the project brief into a concrete request flow before implementation. | A submission flow and appeal flow with components for API validation, detection signals, confidence scoring, label generation, and audit logging. | I made the uncertainty band intentionally wide (`0.31` to `0.69`) because a false positive against a human creator is more harmful than an uncertain label. |
+| Signal calibration | Help compare outputs from the LLM-style signal and stylometric signal on AI-like, casual human, literary, and formal speech examples. | A first scoring approach that combined both signals but sometimes treated structural uniformity too strongly. | I changed the weighting to `70%` LLM-style and `30%` stylometric, then added a disagreement adjustment that pulls conflicting scores toward `0.50`. |
+| Groq resilience | Design the Groq integration so the app still works during local grading if an API key is missing. | A Groq call shape using `llama-3.3-70b-versatile` with a JSON response contract. | I added a deterministic local fallback with the same output shape (`score`, `rationale`, `source`) so reviewers can run the project without my private key. |
+| Browser demo surface | Improve the backend-only project so it can be demonstrated quickly in a walkthrough video. | A simple dashboard concept for submitting text, appealing the latest decision, and showing analytics. | I kept the dashboard operational rather than decorative: it calls the real `/submit`, `/appeal`, `/analytics`, and `/log` endpoints so the demo proves the backend works. |
+| Documentation audit | Check the README against the grading checklist. | A list of missing or weak evidence areas, especially confidence examples and AI usage detail. | I replaced generic scoring examples with actual Groq-backed scores, including real human-authored internet excerpts from Austen, Whitman, and Lincoln. |
