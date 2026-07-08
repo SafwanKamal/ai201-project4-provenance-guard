@@ -185,9 +185,18 @@ DASHBOARD_HTML = """
       latestContentId = data.content_id || latestContentId;
       document.querySelector("#result").innerHTML = `
         <p><span class="badge ${data.attribution}">${data.attribution}</span></p>
+        <p><strong>Status:</strong> ${data.status}</p>
         <p><strong>Confidence:</strong> ${data.confidence}</p>
         <p>${data.label}</p>
         <p><strong>Content ID:</strong> ${data.content_id}</p>
+      `;
+    }
+
+    function renderAppeal(data) {
+      document.querySelector("#result").innerHTML = `
+        <p><span class="badge uncertain">${data.status}</span></p>
+        <p><strong>Content ID:</strong> ${data.content_id}</p>
+        <p>${data.message}</p>
       `;
     }
 
@@ -240,7 +249,11 @@ DASHBOARD_HTML = """
         })
       });
       const data = await response.json();
-      document.querySelector("#result").textContent = JSON.stringify(data, null, 2);
+      if (!response.ok) {
+        document.querySelector("#result").textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+      renderAppeal(data);
       await refreshDashboard();
     });
 
